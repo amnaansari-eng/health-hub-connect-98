@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2, Calendar as CalendarIcon } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Calendar as CalendarIcon, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -17,6 +17,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { cn } from '@/lib/utils';
 
 interface Appointment {
   id: string;
@@ -42,6 +46,8 @@ const Appointments = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedAppointment, setSelectedAppointment] = useState<Appointment | null>(null);
+  const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
+  const [filterType, setFilterType] = useState<'date' | 'month' | 'year'>('date');
   const { user } = useAuth();
 
   useEffect(() => {
@@ -51,17 +57,36 @@ const Appointments = () => {
   }, [user]);
 
   useEffect(() => {
+    let filtered = appointments;
+
+    // Apply text search filter
     if (searchQuery) {
-      const filtered = appointments.filter((apt) =>
+      filtered = filtered.filter((apt) =>
         apt.patients.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.doctors.full_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         apt.status.toLowerCase().includes(searchQuery.toLowerCase())
       );
-      setFilteredAppointments(filtered);
-    } else {
-      setFilteredAppointments(appointments);
     }
-  }, [searchQuery, appointments]);
+
+    // Apply date filter
+    if (dateFilter) {
+      filtered = filtered.filter((apt) => {
+        const aptDate = new Date(apt.appointment_date);
+        
+        if (filterType === 'date') {
+          return format(aptDate, 'yyyy-MM-dd') === format(dateFilter, 'yyyy-MM-dd');
+        } else if (filterType === 'month') {
+          return aptDate.getMonth() === dateFilter.getMonth() && 
+                 aptDate.getFullYear() === dateFilter.getFullYear();
+        } else if (filterType === 'year') {
+          return aptDate.getFullYear() === dateFilter.getFullYear();
+        }
+        return true;
+      });
+    }
+
+    setFilteredAppointments(filtered);
+  }, [searchQuery, appointments, dateFilter, filterType]);
 
   const fetchAppointments = async () => {
     try {
@@ -132,7 +157,7 @@ const Appointments = () => {
           <CardTitle>Appointment Schedule</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
+          <div className="mb-4 space-y-4">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
@@ -141,6 +166,61 @@ const Appointments = () => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
               />
+            </div>
+            
+            <div className="flex flex-col sm:flex-row gap-2">
+              <Select value={filterType} onValueChange={(value: 'date' | 'month' | 'year') => setFilterType(value)}>
+                <SelectTrigger className="w-full sm:w-[180px]">
+                  <SelectValue placeholder="Filter by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date">Specific Date</SelectItem>
+                  <SelectItem value="month">Month</SelectItem>
+                  <SelectItem value="year">Year</SelectItem>
+                </SelectContent>
+              </Select>
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className={cn(
+                      "w-full sm:w-[280px] justify-start text-left font-normal",
+                      !dateFilter && "text-muted-foreground"
+                    )}
+                  >
+                    <CalendarIcon className="mr-2 h-4 w-4" />
+                    {dateFilter ? (
+                      filterType === 'date' ? format(dateFilter, 'PPP') :
+                      filterType === 'month' ? format(dateFilter, 'MMMM yyyy') :
+                      format(dateFilter, 'yyyy')
+                    ) : (
+                      <span>Pick a {filterType}</span>
+                    )}
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-auto p-0" align="start">
+                  <Calendar
+                    mode="single"
+                    selected={dateFilter}
+                    onSelect={setDateFilter}
+                    initialFocus
+                    className={cn("p-3 pointer-events-auto")}
+                  />
+                </PopoverContent>
+              </Popover>
+
+              {dateFilter && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setDateFilter(undefined)}
+                  className="h-10 px-3"
+                >
+                  <X className="h-4 w-4" />
+                  Clear
+                </Button>
+              )}
             </div>
           </div>
 
