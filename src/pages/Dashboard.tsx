@@ -4,6 +4,7 @@ import { Users, UserCog, Calendar, Activity } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router-dom';
 
 interface Stats {
   patients: number;
@@ -20,6 +21,7 @@ const Dashboard = () => {
     todayAppointments: 0,
   });
   const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (user) {
@@ -56,10 +58,10 @@ const Dashboard = () => {
   };
 
   const statCards = [
-    { title: 'Total Patients', value: stats.patients, icon: Users, color: 'text-primary', bgColor: 'bg-primary/10' },
-    { title: 'Total Doctors', value: stats.doctors, icon: UserCog, color: 'text-secondary', bgColor: 'bg-secondary/10' },
-    { title: 'Total Appointments', value: stats.appointments, icon: Calendar, color: 'text-info', bgColor: 'bg-info/10' },
-    { title: "Today's Appointments", value: stats.todayAppointments, icon: Activity, color: 'text-warning', bgColor: 'bg-warning/10' },
+    { title: 'Total Patients', value: stats.patients, icon: Users, color: 'text-primary', bgColor: 'bg-primary/10', route: '/patients' },
+    { title: 'Total Doctors', value: stats.doctors, icon: UserCog, color: 'text-secondary', bgColor: 'bg-secondary/10', route: '/doctors' },
+    { title: 'Total Appointments', value: stats.appointments, icon: Calendar, color: 'text-info', bgColor: 'bg-info/10', route: '/appointments' },
+    { title: "Today's Appointments", value: stats.todayAppointments, icon: Activity, color: 'text-warning', bgColor: 'bg-warning/10', route: '/appointments' },
   ];
 
   return (
@@ -71,7 +73,11 @@ const Dashboard = () => {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {statCards.map((stat, index) => (
-          <Card key={index} className="hover:shadow-lg transition-shadow">
+          <Card 
+            key={index} 
+            className="hover:shadow-lg transition-shadow cursor-pointer"
+            onClick={() => navigate(stat.route)}
+          >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
               <div className={`p-2 rounded-lg ${stat.bgColor}`}>
