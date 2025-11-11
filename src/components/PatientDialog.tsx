@@ -201,10 +201,13 @@ export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: Patien
                 id="height_cm"
                 type="number"
                 step="0.01"
-                min="0"
+                min="100"
+                max="250"
+                placeholder="e.g., 170"
                 value={formData.height_cm || ''}
                 onChange={(e) => setFormData({ ...formData, height_cm: e.target.value ? parseFloat(e.target.value) : null })}
               />
+              <p className="text-xs text-muted-foreground">Enter height in centimeters (100-250 cm)</p>
             </div>
 
             <div className="space-y-2">
