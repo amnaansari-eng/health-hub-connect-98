@@ -57,11 +57,20 @@ const Dashboard = () => {
     }
   };
 
+  const handleCardClick = (route: string, isToday: boolean = false) => {
+    if (isToday) {
+      const today = new Date().toISOString().split('T')[0];
+      navigate(`${route}?date=${today}`);
+    } else {
+      navigate(route);
+    }
+  };
+
   const statCards = [
-    { title: 'Total Patients', value: stats.patients, icon: Users, color: 'text-primary', bgColor: 'bg-primary/10', route: '/patients' },
-    { title: 'Total Doctors', value: stats.doctors, icon: UserCog, color: 'text-secondary', bgColor: 'bg-secondary/10', route: '/doctors' },
-    { title: 'Total Appointments', value: stats.appointments, icon: Calendar, color: 'text-info', bgColor: 'bg-info/10', route: '/appointments' },
-    { title: "Today's Appointments", value: stats.todayAppointments, icon: Activity, color: 'text-warning', bgColor: 'bg-warning/10', route: '/appointments' },
+    { title: 'Total Patients', value: stats.patients, icon: Users, color: 'text-primary', bgColor: 'bg-primary/10', route: '/patients', isToday: false },
+    { title: 'Total Doctors', value: stats.doctors, icon: UserCog, color: 'text-secondary', bgColor: 'bg-secondary/10', route: '/doctors', isToday: false },
+    { title: 'Total Appointments', value: stats.appointments, icon: Calendar, color: 'text-info', bgColor: 'bg-info/10', route: '/appointments', isToday: false },
+    { title: "Today's Appointments", value: stats.todayAppointments, icon: Activity, color: 'text-warning', bgColor: 'bg-warning/10', route: '/appointments', isToday: true },
   ];
 
   return (
@@ -76,7 +85,7 @@ const Dashboard = () => {
           <Card 
             key={index} 
             className="hover:shadow-lg transition-shadow cursor-pointer"
-            onClick={() => navigate(stat.route)}
+            onClick={() => handleCardClick(stat.route, stat.isToday)}
           >
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>

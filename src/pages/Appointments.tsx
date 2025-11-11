@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { AppointmentDialog } from '@/components/AppointmentDialog';
+import { useSearchParams } from 'react-router-dom';
 import {
   Table,
   TableBody,
@@ -49,6 +50,15 @@ const Appointments = () => {
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [filterType, setFilterType] = useState<'date' | 'month' | 'year'>('date');
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+
+  useEffect(() => {
+    const dateParam = searchParams.get('date');
+    if (dateParam) {
+      setDateFilter(new Date(dateParam));
+      setFilterType('date');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (user) {
