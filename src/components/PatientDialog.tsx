@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { Upload, X, FileText, Camera } from 'lucide-react';
 
 interface Patient {
   id?: string;
@@ -34,6 +35,8 @@ interface PatientDialogProps {
 export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: PatientDialogProps) => {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [uploadedFiles, setUploadedFiles] = useState<any[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState(false);
   const [formData, setFormData] = useState<Patient>({
     full_name: '',
     age: 0,
@@ -51,6 +54,9 @@ export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: Patien
   useEffect(() => {
     if (patient) {
       setFormData(patient);
+      if (patient.id) {
+        fetchMedicalDocuments(patient.id);
+      }
     } else {
       setFormData({
         full_name: '',
@@ -65,8 +71,108 @@ export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: Patien
         blood_group: '',
         medical_history: '',
       });
+      setUploadedFiles([]);
     }
   }, [patient, open]);
+
+  const fetchMedicalDocuments = async (patientId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('medical_documents')
+        .select('*')
+        .eq('patient_id', patientId)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+      setUploadedFiles(data || []);
+    } catch (error: any) {
+      console.error('Error fetching medical documents:', error);
+    }
+  };
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0 || !user) return;
+
+    setUploadingFiles(true);
+    try {
+      const uploadPromises = Array.from(files).map(async (file) => {
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Math.random()}.${fileExt}`;
+        const filePath = `${user.id}/${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('medical-documents')
+          .upload(filePath, file);
+
+        if (uploadError) throw uploadError;
+
+        // If editing existing patient, save to database immediately
+        if (patient?.id) {
+          const { error: dbError } = await supabase
+            .from('medical_documents')
+            .insert({
+              patient_id: patient.id,
+              user_id: user.id,
+              file_name: file.name,
+              file_path: filePath,
+              file_size: file.size,
+              mime_type: file.type,
+            });
+
+          if (dbError) throw dbError;
+          await fetchMedicalDocuments(patient.id);
+        } else {
+          // For new patients, add to temporary state
+          setUploadedFiles((prev) => [
+            ...prev,
+            {
+              file_name: file.name,
+              file_path: filePath,
+              file_size: file.size,
+              mime_type: file.type,
+              isTemp: true,
+            },
+          ]);
+        }
+      });
+
+      await Promise.all(uploadPromises);
+      toast.success('Files uploaded successfully');
+    } catch (error: any) {
+      console.error('Error uploading files:', error);
+      toast.error('Failed to upload files');
+    } finally {
+      setUploadingFiles(false);
+    }
+  };
+
+  const handleDeleteFile = async (file: any) => {
+    try {
+      // Delete from storage
+      const { error: storageError } = await supabase.storage
+        .from('medical-documents')
+        .remove([file.file_path]);
+
+      if (storageError) throw storageError;
+
+      // Delete from database if not temporary
+      if (!file.isTemp && file.id) {
+        const { error: dbError } = await supabase
+          .from('medical_documents')
+          .delete()
+          .eq('id', file.id);
+
+        if (dbError) throw dbError;
+      }
+
+      setUploadedFiles((prev) => prev.filter((f) => f.file_path !== file.file_path));
+      toast.success('File deleted successfully');
+    } catch (error: any) {
+      console.error('Error deleting file:', error);
+      toast.error('Failed to delete file');
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,6 +184,8 @@ export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: Patien
         user_id: user!.id,
       };
 
+      let patientId = patient?.id;
+
       if (patient?.id) {
         const { error } = await supabase
           .from('patients')
@@ -86,8 +194,31 @@ export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: Patien
         if (error) throw error;
         toast.success('Patient updated successfully');
       } else {
-        const { error } = await supabase.from('patients').insert(patientData);
+        const { data, error } = await supabase
+          .from('patients')
+          .insert(patientData)
+          .select()
+          .single();
         if (error) throw error;
+        patientId = data.id;
+
+        // Save temporary files to database for new patient
+        if (uploadedFiles.length > 0) {
+          const documentsToInsert = uploadedFiles.map((file) => ({
+            patient_id: patientId,
+            user_id: user!.id,
+            file_name: file.file_name,
+            file_path: file.file_path,
+            file_size: file.file_size,
+            mime_type: file.mime_type,
+          }));
+
+          const { error: docsError } = await supabase
+            .from('medical_documents')
+            .insert(documentsToInsert);
+
+          if (docsError) throw docsError;
+        }
         toast.success('Patient added successfully');
       }
 
@@ -240,6 +371,80 @@ export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: Patien
               onChange={(e) => setFormData({ ...formData, medical_history: e.target.value })}
               rows={3}
             />
+          </div>
+
+          <div className="space-y-2">
+            <Label>Medical Documents</Label>
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('file-upload')?.click()}
+                disabled={uploadingFiles}
+                className="flex-1"
+              >
+                <Upload className="w-4 h-4 mr-2" />
+                {uploadingFiles ? 'Uploading...' : 'Upload Files'}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => document.getElementById('camera-upload')?.click()}
+                disabled={uploadingFiles}
+                className="flex-1"
+              >
+                <Camera className="w-4 h-4 mr-2" />
+                Take Photo
+              </Button>
+            </div>
+            <input
+              id="file-upload"
+              type="file"
+              multiple
+              accept="image/*,.pdf"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <input
+              id="camera-upload"
+              type="file"
+              multiple
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileUpload}
+              className="hidden"
+            />
+            <p className="text-xs text-muted-foreground">
+              Upload medical reports, prescriptions, or test results (images or PDFs, max 5MB each)
+            </p>
+
+            {uploadedFiles.length > 0 && (
+              <div className="mt-3 space-y-2">
+                {uploadedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center justify-between p-2 border rounded-md bg-muted/50"
+                  >
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <FileText className="w-4 h-4 flex-shrink-0" />
+                      <span className="text-sm truncate">{file.file_name}</span>
+                      <span className="text-xs text-muted-foreground">
+                        ({(file.file_size / 1024).toFixed(1)} KB)
+                      </span>
+                    </div>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => handleDeleteFile(file)}
+                      className="flex-shrink-0"
+                    >
+                      <X className="w-4 h-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="flex justify-end gap-2">
