@@ -122,7 +122,8 @@ export const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess }
         const { error } = await supabase
           .from('appointments')
           .update(appointmentData)
-          .eq('id', appointment.id);
+          .eq('id', appointment.id)
+          .eq('user_id', user!.id);
         if (error) throw error;
         toast.success('Appointment updated successfully');
       } else {
