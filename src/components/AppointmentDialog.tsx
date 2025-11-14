@@ -113,8 +113,15 @@ export const AppointmentDialog = ({ open, onOpenChange, appointment, onSuccess }
     setLoading(true);
 
     try {
+      // Only include actual database columns, not nested relations
       const appointmentData = {
-        ...formData,
+        patient_id: formData.patient_id,
+        doctor_id: formData.doctor_id,
+        appointment_date: formData.appointment_date,
+        appointment_time: formData.appointment_time,
+        status: formData.status,
+        reason: formData.reason,
+        notes: formData.notes,
         user_id: user!.id,
       };
 
