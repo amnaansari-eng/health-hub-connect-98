@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Plus, Search, Edit, Trash2 } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -29,6 +29,7 @@ interface Patient {
   weight_kg: number | null;
   bmi: number | null;
   blood_group: string | null;
+  document_count?: number;
 }
 
 const Patients = () => {
@@ -60,15 +61,36 @@ const Patients = () => {
 
   const fetchPatients = async () => {
     try {
-      const { data, error } = await supabase
+      const { data: patientsData, error: patientsError } = await supabase
         .from('patients')
         .select('*')
         .eq('user_id', user!.id)
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
-      setPatients(data || []);
-      setFilteredPatients(data || []);
+      if (patientsError) throw patientsError;
+
+      // Fetch document counts for each patient
+      const { data: documentsData, error: documentsError } = await supabase
+        .from('medical_documents')
+        .select('patient_id')
+        .eq('user_id', user!.id);
+
+      if (documentsError) throw documentsError;
+
+      // Count documents per patient
+      const documentCounts = (documentsData || []).reduce((acc: Record<string, number>, doc) => {
+        acc[doc.patient_id] = (acc[doc.patient_id] || 0) + 1;
+        return acc;
+      }, {});
+
+      // Add document counts to patients
+      const patientsWithCounts = (patientsData || []).map(patient => ({
+        ...patient,
+        document_count: documentCounts[patient.id] || 0,
+      }));
+
+      setPatients(patientsWithCounts);
+      setFilteredPatients(patientsWithCounts);
     } catch (error: any) {
       toast.error('Failed to fetch patients');
       console.error('Error:', error);
@@ -137,13 +159,14 @@ const Patients = () => {
                   <TableHead>Contact</TableHead>
                   <TableHead>City</TableHead>
                   <TableHead>BMI</TableHead>
+                  <TableHead>Medical Documents</TableHead>
                   <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredPatients.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                    <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                       No patients found. Add your first patient to get started.
                     </TableCell>
                   </TableRow>
@@ -171,6 +194,21 @@ const Patients = () => {
                             <span>{patient.bmi?.toFixed(1) || 'N/A'}</span>
                             <Badge variant={bmiCategory.variant}>{bmiCategory.label}</Badge>
                           </div>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="gap-2"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedPatient(patient);
+                              setIsDialogOpen(true);
+                            }}
+                          >
+                            <FileText className="h-4 w-4" />
+                            <span>{patient.document_count || 0}</span>
+                          </Button>
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
