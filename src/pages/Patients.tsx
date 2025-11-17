@@ -152,7 +152,14 @@ const Patients = () => {
                     const bmiCategory = getBMICategory(patient.bmi);
                     return (
                       <TableRow key={patient.id}>
-                        <TableCell className="font-medium">{patient.full_name}</TableCell>
+                        <TableCell className="font-medium">
+                          <button
+                            onClick={() => { setSelectedPatient(patient); setIsDialogOpen(true); }}
+                            className="text-primary hover:underline cursor-pointer"
+                          >
+                            {patient.full_name}
+                          </button>
+                        </TableCell>
                         <TableCell>{patient.age}</TableCell>
                         <TableCell>{patient.gender}</TableCell>
                         <TableCell>
