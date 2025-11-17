@@ -56,8 +56,10 @@ export const DoctorDialog = ({ open, onOpenChange, doctor, onSuccess }: DoctorDi
     setLoading(true);
 
     try {
+      // Filter out any computed fields that aren't in the database
+      const { id, ...doctorFields } = formData as any;
       const doctorData = {
-        ...formData,
+        ...doctorFields,
         user_id: user!.id,
       };
 

@@ -179,8 +179,10 @@ export const PatientDialog = ({ open, onOpenChange, patient, onSuccess }: Patien
     setLoading(true);
 
     try {
+      // Exclude computed fields and id (id is used in .eq() clause, not in update data)
+      const { document_count, id, ...patientFields } = formData as any;
       const patientData = {
-        ...formData,
+        ...patientFields,
         user_id: user!.id,
       };
 
