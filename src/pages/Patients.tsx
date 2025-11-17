@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { PatientDialog } from '@/components/PatientDialog';
+import { MedicalDocumentsDialog } from '@/components/MedicalDocumentsDialog';
 import {
   Table,
   TableBody,
@@ -38,6 +39,8 @@ const Patients = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [selectedPatient, setSelectedPatient] = useState<Patient | null>(null);
+  const [isDocumentsDialogOpen, setIsDocumentsDialogOpen] = useState(false);
+  const [documentsPatient, setDocumentsPatient] = useState<{ id: string; name: string } | null>(null);
   const { user } = useAuth();
 
   useEffect(() => {
@@ -202,8 +205,8 @@ const Patients = () => {
                             className="gap-2"
                             onClick={(e) => {
                               e.stopPropagation();
-                              setSelectedPatient(patient);
-                              setIsDialogOpen(true);
+                              setDocumentsPatient({ id: patient.id, name: patient.full_name });
+                              setIsDocumentsDialogOpen(true);
                             }}
                           >
                             <FileText className="h-4 w-4" />
@@ -244,6 +247,15 @@ const Patients = () => {
         patient={selectedPatient}
         onSuccess={fetchPatients}
       />
+
+      {documentsPatient && (
+        <MedicalDocumentsDialog
+          open={isDocumentsDialogOpen}
+          onOpenChange={setIsDocumentsDialogOpen}
+          patientId={documentsPatient.id}
+          patientName={documentsPatient.name}
+        />
+      )}
     </div>
   );
 };
