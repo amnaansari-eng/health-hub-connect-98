@@ -151,15 +151,12 @@ const Patients = () => {
                   filteredPatients.map((patient) => {
                     const bmiCategory = getBMICategory(patient.bmi);
                     return (
-                      <TableRow key={patient.id}>
-                        <TableCell className="font-medium">
-                          <button
-                            onClick={() => { setSelectedPatient(patient); setIsDialogOpen(true); }}
-                            className="text-primary hover:underline cursor-pointer"
-                          >
-                            {patient.full_name}
-                          </button>
-                        </TableCell>
+                      <TableRow 
+                        key={patient.id}
+                        className="cursor-pointer hover:bg-muted/50"
+                        onClick={() => { setSelectedPatient(patient); setIsDialogOpen(true); }}
+                      >
+                        <TableCell className="font-medium">{patient.full_name}</TableCell>
                         <TableCell>{patient.age}</TableCell>
                         <TableCell>{patient.gender}</TableCell>
                         <TableCell>
@@ -176,7 +173,7 @@ const Patients = () => {
                           </div>
                         </TableCell>
                         <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
+                          <div className="flex justify-end gap-2" onClick={(e) => e.stopPropagation()}>
                             <Button
                               variant="ghost"
                               size="sm"
